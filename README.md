@@ -35,7 +35,7 @@
 
 ## Статус
 
-**Фаза 1: в работе (13.10-23.10).**
+**Фаза 1: в работе (20.09-23.10).**
 Подготовлены концепции и критерии (`phase-1/concepts_and_criteria.md`), расчетные книги
 `phase-1/TOPSIS.xlsx` и `phase-1/МАИ.xlsx`, скрипт сверки `phase-1/calc_phase1.py`,
 матрица RACI (`reports/RACI.md`) и каркас отчета (`reports/report_phase_1.md`).
