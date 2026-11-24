@@ -13,6 +13,9 @@
 
 Сравнительная модель B: min L_max (самая ровная нагрузка), предпочтения не учитываются.
 Сравнительная модель C: max sum p_ij h_i x_ij без ограничения на баланс.
+Сравнительная модель D (лексикографическая): среди распределений с ЦФ модели A
+  выбрать то, у которого разброс нагрузки max L_j - min L_j минимален. Нужна потому,
+  что у модели A оптимум не единственный.
 
 Запуск:  python assign_phase3.py [путь_к_xlsx] [--delta 0.15] [--kmin 3]
 Зависимости: pyomo, highspy, openpyxl
@@ -53,7 +56,7 @@ def read_data(path):
     return tasks, experts, h, p
 
 
-def solve(tasks, experts, h, p, mode="A", delta=0.15, kmin=3):
+def solve(tasks, experts, h, p, mode="A", delta=0.15, kmin=3, util_min=None):
     I, J = range(len(tasks)), range(len(experts))
     total = sum(h.values()) + COMMON_HOURS * len(experts)
     avg = total / len(experts)
@@ -73,6 +76,13 @@ def solve(tasks, experts, h, p, mode="A", delta=0.15, kmin=3):
         m.Lmax = pyo.Var(domain=pyo.NonNegativeReals)
         m.cap = pyo.Constraint(J, rule=lambda m, j: m.L[j] <= m.Lmax)
         m.obj = pyo.Objective(expr=m.Lmax, sense=pyo.minimize)
+    elif mode == "D":
+        m.u = pyo.Constraint(expr=utility >= util_min - 1e-6)
+        m.Lhi = pyo.Var()
+        m.Llo = pyo.Var()
+        m.chi = pyo.Constraint(J, rule=lambda m, j: m.L[j] <= m.Lhi)
+        m.clo = pyo.Constraint(J, rule=lambda m, j: m.L[j] >= m.Llo)
+        m.obj = pyo.Objective(expr=m.Lhi - m.Llo, sense=pyo.minimize)
     else:
         m.obj = pyo.Objective(expr=utility, sense=pyo.maximize)
 
@@ -109,7 +119,9 @@ if __name__ == "__main__":
     tasks, experts, h, p = data
     print(f"Задач: {len(tasks)}, суммарная трудоемкость {sum(h.values()):.1f} ч "
           f"+ общие активности {COMMON_HOURS} ч на человека")
-    report(f"A: max предпочтений при балансе +-{a.delta:.0%}", *data,
-           solve(*data, "A", a.delta, a.kmin))
+    res_a = solve(*data, "A", a.delta, a.kmin)
+    report(f"A: max предпочтений при балансе +-{a.delta:.0%}", *data, res_a)
     report("B: min максимальной нагрузки", *data, solve(*data, "B", a.delta, a.kmin))
     report("C: max предпочтений без баланса", *data, solve(*data, "C", a.delta, a.kmin))
+    report("D: ЦФ модели A, затем min разброса нагрузки", *data,
+           solve(*data, "D", a.delta, a.kmin, util_min=res_a[3]))
